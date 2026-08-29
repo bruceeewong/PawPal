@@ -40,7 +40,8 @@ export function useSnapshot(): AppSnapshot {
       active: false,
       conversationRounds: 0,
       resetDueAt: null
-    }
+    },
+    chatShortcutRegistered: true
   });
 
   useEffect(() => {

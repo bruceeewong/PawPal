@@ -39,6 +39,8 @@ export const CHAT_PROVIDER_PRESETS: Record<ChatProviderId, ChatProviderPreset> =
   }
 };
 
+export const DEFAULT_CHAT_SHORTCUT = "CommandOrControl+Shift+Space";
+
 export const DEFAULT_SETTINGS: Settings = {
   language: "zh-CN",
   petAppearanceId: "lineDog",
@@ -96,7 +98,8 @@ export const DEFAULT_SETTINGS: Settings = {
   chatSystemPrompt:
     "You are now in PawPal, a desktop companion application. Your persona is a warm and friendly dog. Keep replies concise, practical, and gently encouraging. Help the user return to focused work. Reply in the user's language.",
   chatCompanionInactivityMinutes: 3,
-  chatSessionExpiryHours: 8
+  chatSessionExpiryHours: 8,
+  chatShortcut: DEFAULT_CHAT_SHORTCUT
 };
 
 export function todayKey(date = new Date()): string {

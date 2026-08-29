@@ -727,6 +727,42 @@ textarea {
   border-color: var(--accent);
 }
 
+.pref-shortcut {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.pref-shortcut__field {
+  background: #fff;
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  height: 30px;
+  min-width: 150px;
+  outline: 0;
+  padding: 0 10px;
+  transition: border-color 160ms ease;
+}
+
+.pref-shortcut__field:hover,
+.pref-shortcut__field:focus {
+  border-color: var(--accent);
+}
+
+.pref-shortcut__field.is-recording {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pref-shortcut .pref-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .pref-chips {
   flex: 1;
   max-width: 100%;

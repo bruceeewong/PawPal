@@ -35,7 +35,10 @@ const api = {
     ipcRenderer.invoke("companion:send-message", message),
   listChatModels: (settings: Partial<Settings>): Promise<ChatProviderModelsResult> =>
     ipcRenderer.invoke("chat:list-models", settings),
+  setShortcutRecording: (recording: boolean): void =>
+    ipcRenderer.send("shortcut:set-recording", recording),
   isPackaged: !process.defaultApp,
+  platform: process.platform,
   assetUrl: (relativePath: string): string => {
     return `pawpal-asset://asset/${encodeURIComponent(relativePath)}`;
   },

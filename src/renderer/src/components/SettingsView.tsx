@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { JSX, ReactNode } from "react";
+import type { JSX, KeyboardEvent, ReactNode } from "react";
 import { CHAT_PROVIDER_PRESETS, DEFAULT_SETTINGS } from "../../../shared/constants";
 import { i18n, LANGUAGE_OPTIONS, resolveLanguage } from "../../../shared/i18n";
 import { petAppearanceOptions, resolvePetAppearanceId } from "../../../shared/petAppearances";
@@ -152,6 +152,137 @@ function TextControl({
       spellCheck={false}
       onChange={(event) => onChange(event.target.value)}
     />
+  );
+}
+
+const IS_MAC = window.pawpal.platform === "darwin";
+
+// Electron accelerator token per modifier. metaKey and ctrlKey both collapse to
+// CommandOrControl so a recorded combo stays portable across platforms; the trade-off is
+// that Cmd and Ctrl cannot be bound to different things on macOS.
+function modifierTokens(event: KeyboardEvent): string[] {
+  const tokens: string[] = [];
+  if (event.metaKey || event.ctrlKey) tokens.push("CommandOrControl");
+  if (event.altKey) tokens.push("Alt");
+  if (event.shiftKey) tokens.push("Shift");
+  return tokens;
+}
+
+// event.code, not event.key: key mutates under modifiers (Alt+S reports "ß" on macOS).
+function keyToken(code: string): string | null {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^F[1-9][0-9]?$/.test(code)) return code;
+  if (/^Arrow(Up|Down|Left|Right)$/.test(code)) return code.slice(5);
+  const named: Record<string, string> = {
+    Space: "Space",
+    Enter: "Return",
+    Tab: "Tab",
+    Backspace: "Backspace",
+    Delete: "Delete",
+    Home: "Home",
+    End: "End",
+    PageUp: "PageUp",
+    PageDown: "PageDown",
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Backslash: "\\",
+    Semicolon: ";",
+    Quote: "'",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Minus: "-",
+    Equal: "=",
+    Backquote: "`"
+  };
+  return named[code] ?? null;
+}
+
+/**
+ * Returns null while the combo is not yet usable, so the recorder keeps listening:
+ * either only modifiers are held, or the key would produce a modifier-less accelerator
+ * (registering a bare letter globally would hijack that key system-wide).
+ */
+function acceleratorFromEvent(event: KeyboardEvent): string | null {
+  const key = keyToken(event.code);
+  if (!key) return null;
+  const modifiers = modifierTokens(event);
+  if (modifiers.length === 0) return null;
+  return [...modifiers, key].join("+");
+}
+
+function formatAccelerator(accelerator: string): string {
+  const parts = accelerator.split("+");
+  if (!IS_MAC) {
+    return parts.map((part) => (part === "CommandOrControl" ? "Ctrl" : part)).join("+");
+  }
+  const symbols: Record<string, string> = {
+    CommandOrControl: "\u2318",
+    Command: "\u2318",
+    Control: "\u2303",
+    Alt: "\u2325",
+    Shift: "\u21e7"
+  };
+  return parts.map((part) => symbols[part] ?? part).join("");
+}
+
+function ShortcutControl({
+  value,
+  labels,
+  onChange
+}: {
+  value: string;
+  labels: SettingsCopy;
+  onChange: (next: string) => void;
+}): JSX.Element {
+  const [recording, setRecording] = useState(false);
+
+  function stopRecording(): void {
+    setRecording(false);
+    window.pawpal.setShortcutRecording(false);
+  }
+
+  return (
+    <div className="pref-shortcut">
+      <button
+        type="button"
+        className={`pref-shortcut__field${recording ? " is-recording" : ""}`}
+        onClick={() => {
+          setRecording(true);
+          window.pawpal.setShortcutRecording(true);
+        }}
+        onBlur={() => {
+          if (recording) stopRecording();
+        }}
+        onKeyDown={(event) => {
+          if (!recording) return;
+          event.preventDefault();
+          if (event.key === "Escape") {
+            stopRecording();
+            return;
+          }
+          const accelerator = acceleratorFromEvent(event);
+          if (!accelerator) return;
+          onChange(accelerator);
+          stopRecording();
+        }}
+      >
+        {recording
+          ? labels.shortcutRecordPrompt
+          : value
+            ? formatAccelerator(value)
+            : labels.shortcutNone}
+      </button>
+      <button
+        type="button"
+        className="pref-button"
+        disabled={!value}
+        onClick={() => onChange("")}
+      >
+        {labels.shortcutClear}
+      </button>
+    </div>
   );
 }
 
@@ -460,7 +591,8 @@ export function SettingsView(): JSX.Element {
       chatThinkingPrefix: DEFAULT_SETTINGS.chatThinkingPrefix,
       chatSystemPrompt: DEFAULT_SETTINGS.chatSystemPrompt,
       chatCompanionInactivityMinutes: DEFAULT_SETTINGS.chatCompanionInactivityMinutes,
-      chatSessionExpiryHours: DEFAULT_SETTINGS.chatSessionExpiryHours
+      chatSessionExpiryHours: DEFAULT_SETTINGS.chatSessionExpiryHours,
+      chatShortcut: DEFAULT_SETTINGS.chatShortcut
     });
   }
 
@@ -666,6 +798,21 @@ export function SettingsView(): JSX.Element {
         />
         {draft.chatCompanionEnabled ? (
           <>
+            <Row
+              label={labels.chatShortcut}
+              hint={
+                snapshot.chatShortcutRegistered
+                  ? labels.chatShortcutHelp
+                  : labels.chatShortcutUnavailable
+              }
+              control={
+                <ShortcutControl
+                  value={draft.chatShortcut}
+                  labels={labels}
+                  onChange={(chatShortcut) => updateDraft({ chatShortcut })}
+                />
+              }
+            />
             <Row
               label={labels.chatProvider}
               hint={labels.chatProviderHelp}

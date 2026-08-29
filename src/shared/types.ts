@@ -88,6 +88,7 @@ export type Settings = {
   chatSystemPrompt: string;
   chatCompanionInactivityMinutes: number;
   chatSessionExpiryHours: number;
+  chatShortcut: string;
 };
 
 export type ChatProviderModel = {
@@ -168,6 +169,7 @@ export type AppSnapshot = {
   focusActive: boolean;
   pawpalVisible: boolean;
   chatCompanion: ChatCompanionDiagnostics;
+  chatShortcutRegistered: boolean;
 };
 
 export type DemoTrigger =

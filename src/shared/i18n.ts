@@ -180,6 +180,12 @@ export const I18N = {
       chatCompanionInactivityHelp: "没有互动后，释放聊天气泡和状态锁，但保留本次聊天会话。",
       chatSessionExpiry: "聊天会话过期时长",
       chatSessionExpiryHelp: "超过这个时间没有聊天后，本次聊天会话会结束并重置。",
+      chatShortcut: "全局快捷键",
+      chatShortcutHelp: "在任何应用里按下这个组合键，都能唤起 PawPal 聊天；再按一次收起。",
+      chatShortcutUnavailable: "无法注册，可能已被其他应用占用，请换一个组合键。",
+      shortcutRecordPrompt: "请按下快捷键…",
+      shortcutNone: "未设置",
+      shortcutClear: "清除",
       resetChatSettings: "重置聊天配置",
       today: "今日",
       breaks: "休息",
@@ -423,6 +429,14 @@ export const I18N = {
       chatSessionExpiry: "Chat Session Expiry Duration",
       chatSessionExpiryHelp:
         "After this much time without chat activity, the current chat session ends and resets.",
+      chatShortcut: "Global Shortcut",
+      chatShortcutHelp:
+        "Press this combo from any app to summon PawPal chat. Press it again to hide.",
+      chatShortcutUnavailable:
+        "Could not register — another app may already own this combo. Try a different one.",
+      shortcutRecordPrompt: "Press keys…",
+      shortcutNone: "Not set",
+      shortcutClear: "Clear",
       resetChatSettings: "Reset Chat Defaults",
       today: "Today",
       breaks: "Breaks",

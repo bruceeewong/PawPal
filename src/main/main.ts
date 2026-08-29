@@ -40,6 +40,7 @@ import {
 import { normalizeChatSettings } from "./chat/config";
 import type { ChatModule, CompanionSession } from "./chat";
 import { classifyDistraction, isPermissionError, readActiveWindow } from "./distraction";
+import { registerChatShortcut, unregisterChatShortcut } from "./shortcuts";
 import { createTrayImage } from "./trayIcon";
 
 type PetPosition = {
@@ -106,6 +107,7 @@ let distractionStatus: DistractionStatus = {
   error: null
 };
 let chatModule: ChatModule | null = null;
+let chatShortcutRegistered = true;
 
 function getSettings(): Settings {
   const stored = store.get("settings");
@@ -135,6 +137,7 @@ function setSettings(next: Settings): void {
   scheduleReminderTimers();
   scheduleDistractionDetection();
   chatModule?.scheduleTimers();
+  applyChatShortcut();
   updateTrayMenu();
   publishSnapshot();
 }
@@ -209,7 +212,8 @@ function snapshot(): AppSnapshot {
     blockingMode,
     pawpalVisible: Boolean(petWindow?.isVisible()),
     focusActive,
-    chatCompanion: chatModule?.diagnostics() ?? emptyChatDiagnostics()
+    chatCompanion: chatModule?.diagnostics() ?? emptyChatDiagnostics(),
+    chatShortcutRegistered
   };
 }
 
@@ -425,6 +429,16 @@ function ensurePetWindowVisible(): void {
   publishSnapshot();
 }
 
+// The pet window is normally shown with showInactive() so it never steals focus. When chat is
+// summoned by the global shortcut another app owns the keyboard, so we have to take focus
+// explicitly or PetView's auto-focused input receives nothing.
+function focusPetWindow(): void {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  if (process.platform === "darwin") app.focus({ steal: true });
+  petWindow.show();
+  petWindow.focus();
+}
+
 function createSettingsWindow(): void {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
@@ -461,6 +475,7 @@ function createSettingsWindow(): void {
   });
   settingsWindow.on("closed", () => {
     settingsWindow = null;
+    applyChatShortcut();
   });
 }
 
@@ -485,6 +500,26 @@ async function initializeChatModule(): Promise<void> {
   });
 }
 
+function toggleChat(): void {
+  if (!chatModule) return;
+  if (chatModule.isChatVisible()) {
+    chatModule.hideChat();
+  } else {
+    chatModule.openChat();
+    focusPetWindow();
+  }
+  updateTrayMenu();
+}
+
+function applyChatShortcut(): void {
+  const settings = getSettings();
+  const accelerator = chatModule && settings.chatCompanionEnabled ? settings.chatShortcut : "";
+  chatShortcutRegistered = registerChatShortcut(accelerator, toggleChat);
+  if (!chatShortcutRegistered) {
+    console.warn(`PawPal could not register the global chat shortcut "${accelerator}".`);
+  }
+}
+
 function createTray(): void {
   tray = new Tray(createTrayImage());
   tray.setToolTip(APP_NAME);
@@ -505,11 +540,7 @@ function chatMenuItems(): Electron.MenuItemConstructorOptions[] {
     { type: "separator" },
     {
       label: chatVisible ? labels.stopChat : labels.chatWithPawPal,
-      click: () => {
-        if (chatModule?.isChatVisible()) chatModule.hideChat();
-        else chatModule?.openChat();
-        updateTrayMenu();
-      }
+      click: toggleChat
     },
     ...(getSettings().chatCompanionEnabled
       ? [
@@ -1179,6 +1210,11 @@ function registerIpc(): void {
   ipcMain.on("focus:start", startFocusMode);
   ipcMain.on("focus:stop", () => stopFocusMode(false));
   ipcMain.on("stats:reset-today", resetTodayStats);
+  // The settings recorder needs the raw keystrokes, so release the global binding while it captures.
+  ipcMain.on("shortcut:set-recording", (_event, recording: boolean) => {
+    if (recording) unregisterChatShortcut();
+    else applyChatShortcut();
+  });
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -1212,6 +1248,7 @@ app.whenReady().then(async () => {
   registerIpc();
   createPetWindow();
   createTray();
+  applyChatShortcut();
   scheduleReminderTimers();
   scheduleDistractionDetection();
   chatModule?.scheduleTimers();
@@ -1225,6 +1262,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  unregisterChatShortcut();
   chatModule?.clearTimers();
   for (const timer of [
     breakRunTimer,
